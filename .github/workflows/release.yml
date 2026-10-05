@@ -2,7 +2,8 @@ name: release
 
 on:
   push:
-    tags: ["v*"]
+    branches: [main]      # 推 main 也构建一次，方便验证 CI 是否正常
+    tags: ["v*"]          # 打 tag 时额外附到 Release
   workflow_dispatch:
 
 jobs:
