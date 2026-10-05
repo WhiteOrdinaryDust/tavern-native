@@ -85,6 +85,11 @@ fun MemberDialog(
                 Spacer(Modifier.height(6.dp))
                 // 按 group.members 的顺序显示：这个顺序就是「依次都回」的发言顺序
                 val ordered = group.members.mapNotNull { id -> members.firstOrNull { it.id == id } }
+                Text(
+                    "顺序 = 按「依次都回」时的发言先后。↑ 直接置顶，↓ 下移一位。",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
                 LazyColumn(modifier = Modifier.heightIn(max = 300.dp)) {
                     items(ordered, key = { it.id }) { member ->
                         val muted = group.isMuted(member.id)
@@ -105,22 +110,32 @@ fun MemberDialog(
                             Spacer(Modifier.weight(1f))
                             // 调换发言顺序：直接影响群聊「依次都回」的先后
                             val index = group.members.indexOf(member.id)
-                            fun move(delta: Int) {
+                            fun saveOrder(ids: List<String>, tip: String) {
+                                val updated = group.copy(members = ids)
+                                onGroupChanged(updated)
+                                bg({ store0(context).upsertGroup(updated) }) { notice = tip }
+                            }
+                            // ↑ = 直接置顶：把排在底部的角色一把拉到最前（粗调）
+                            fun moveToTop() {
+                                if (index <= 0) return
                                 val ids = group.members.toMutableList()
-                                val to = index + delta
-                                if (index < 0 || to < 0 || to >= ids.size) return
+                                val id = ids.removeAt(index)
+                                ids.add(0, id)
+                                saveOrder(ids, "已把「${member.name}」置顶（第 1 位）")
+                            }
+                            // ↓ = 下移一位（细调）
+                            fun moveDown() {
+                                val to = index + 1
+                                if (index < 0 || to >= group.members.size) return
+                                val ids = group.members.toMutableList()
                                 val tmp = ids[index]
                                 ids[index] = ids[to]
                                 ids[to] = tmp
-                                val updated = group.copy(members = ids)
-                                onGroupChanged(updated)
-                                bg({ store0(context).upsertGroup(updated) }) {
-                                    notice = "发言顺序已调整为：第 ${to + 1} 位"
-                                }
+                                saveOrder(ids, "已把「${member.name}」下移到第 ${to + 1} 位")
                             }
-                            TextButton(onClick = { move(-1) }, enabled = index > 0) { Text("↑") }
+                            TextButton(onClick = { moveToTop() }, enabled = index > 0) { Text("↑") }
                             TextButton(
-                                onClick = { move(1) },
+                                onClick = { moveDown() },
                                 enabled = index in 0 until (group.members.size - 1),
                             ) { Text("↓") }
                         }
