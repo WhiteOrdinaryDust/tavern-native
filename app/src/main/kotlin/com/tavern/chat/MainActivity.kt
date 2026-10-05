@@ -388,6 +388,7 @@ private fun ChatScreen(
     var showSummary by remember { mutableStateOf(false) }
     var showRhythm by remember { mutableStateOf(false) }
     var showSearch by remember { mutableStateOf(false) }
+    var editingSpeaker by remember { mutableStateOf<Character?>(null) }
     var exportNotice by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
     // 候选切换等"改了可变对象、列表内容却相等"的场景：用版本号强制相关子树重组
@@ -1089,6 +1090,13 @@ private fun ChatScreen(
                             members.firstOrNull { it.id == message.speaker }?.name
                                 ?: character.name
                         },
+                        onAvatarClick = {
+                            if (message.role != "user") {
+                                // 点这条消息的头像 = 编辑发言人的角色卡
+                                editingSpeaker = members.firstOrNull { it.id == message.speaker }
+                                    ?: character
+                            }
+                        },
                         onClick = { actionTarget = message },
                     )
                     // 最后一条回复下方：↻ 重写 + 候选左右切换（学 DeepSeek 的位置）
@@ -1387,6 +1395,17 @@ private fun ChatScreen(
         )
     }
 
+    editingSpeaker?.let { target ->
+        CharacterEditDialog(
+            character = target,
+            onDismiss = { editingSpeaker = null },
+            onSave = { updated ->
+                editingSpeaker = null
+                bg({ store0(context).upsertCharacter(updated) })
+            },
+        )
+    }
+
     if (showMembers) {
         val activeGroup = group
         if (activeGroup != null) {
@@ -1483,6 +1502,7 @@ private fun Bubble(
     tokensEstimated: Boolean = false,
     avatarPath: String = "",
     avatarName: String = "",
+    onAvatarClick: (() -> Unit)? = null,
     onClick: (() -> Unit)? = null,
 ) {
     val look = LocalAppearance.current
@@ -1519,6 +1539,7 @@ private fun Bubble(
                     modifier = Modifier
                         .size(avatarSize)
                         .clip(CircleShape)
+                        .clickable { onAvatarClick?.invoke() }
                         .padding(end = 2.dp),
                 )
                 Spacer(Modifier.width(6.dp))
@@ -1527,7 +1548,8 @@ private fun Bubble(
                     modifier = Modifier
                         .size(avatarSize)
                         .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .clickable { onAvatarClick?.invoke() },
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
@@ -1560,6 +1582,7 @@ private fun Bubble(
                 BubbleBody(
                     text, reasoning, streaming, formatActions, speakerName, renderMarkdown,
                     showReasoning, modelName, tokensUsed, createdAt, isUser, tokensEstimated, avatarPath, avatarName,
+                    onAvatarClick,
                 )
             }
         } else {
@@ -1593,6 +1616,7 @@ private fun BubbleBody(
     tokensEstimated: Boolean = false,
     avatarPath: String = "",
     avatarName: String = "",
+    onAvatarClick: (() -> Unit)? = null,
 ) {
     Column(modifier = Modifier.padding(10.dp)) {
         if (speakerName != null) {

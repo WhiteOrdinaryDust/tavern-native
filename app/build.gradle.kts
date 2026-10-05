@@ -2,8 +2,14 @@ import java.util.Properties
 
 // 正式签名：密码放在工程根的 keystore.properties（不进版本库）
 val keystoreProps = Properties().apply {
-    val f = rootProject.file("keystore.properties")
-    if (f.exists()) f.inputStream().use { load(it) }
+    // 本地私有的 keystore.properties 优先；没有就用仓库里公开的 signing/keystore.properties
+    // （本项目**故意公开签名密钥**，让任何人都能构建可覆盖安装的升级包 —— 风险见 README）
+    val local = rootProject.file("keystore.properties")
+    val published = rootProject.file("signing/keystore.properties")
+    when {
+        local.exists() -> local.inputStream().use { load(it) }
+        published.exists() -> published.inputStream().use { load(it) }
+    }
 }
 
 plugins {
@@ -20,8 +26,8 @@ android {
         applicationId = "com.tavern.chat"
         minSdk = 24
         targetSdk = 36
-        versionCode = 70
-        versionName = "0.70.0"
+        versionCode = 71
+        versionName = "0.71.0"
     }
 
     signingConfigs {

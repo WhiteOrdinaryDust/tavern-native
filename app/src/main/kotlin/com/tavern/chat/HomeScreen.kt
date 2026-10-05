@@ -122,6 +122,7 @@ fun HomeScreen(
 
 
     var pendingDelete by remember { mutableStateOf<(() -> Unit)?>(null) }
+    var editingCharacter by remember { mutableStateOf<Character?>(null) }
     var pendingWhat by remember { mutableStateOf("") }
 
     ConfirmDelete(pendingDelete, pendingWhat) { pendingDelete = null }
@@ -384,6 +385,13 @@ fun HomeScreen(
                                         },
                                     )
                                     DropdownMenuItem(
+                                        text = { Text("编辑角色卡…") },
+                                        onClick = {
+                                            menuOpen = false
+                                            editingCharacter = character
+                                        },
+                                    )
+                                    DropdownMenuItem(
                                         text = { Text("导出角色卡（JSON）") },
                                         onClick = {
                                             menuOpen = false
@@ -518,6 +526,17 @@ fun HomeScreen(
                 }) { Text("保存") }
             },
             dismissButton = { TextButton(onClick = { renamingFolder = null }) { Text("取消") } },
+        )
+    }
+
+    editingCharacter?.let { target ->
+        CharacterEditDialog(
+            character = target,
+            onDismiss = { editingCharacter = null },
+            onSave = { updated ->
+                editingCharacter = null
+                bg({ store0(context).upsertCharacter(updated) }) { tick++ }
+            },
         )
     }
 
