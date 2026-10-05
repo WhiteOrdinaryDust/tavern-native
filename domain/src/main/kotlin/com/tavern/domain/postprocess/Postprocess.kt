@@ -60,6 +60,18 @@ object Postprocess {
     )
 
     /** 把回复切成带样式的片段；落单的 `*` 原样保留，换行原样保留。 */
+    /**
+     * 去掉 `*动作*` / `**强调**` 的星号，只留下里面的文字。
+     *
+     * 用于「动作斜体」关闭时：即便模型按惯性写了星号，也显示成普通文字，而不是把星号露出来。
+     */
+    fun stripEmphasis(text: String?): String {
+        if (text.isNullOrEmpty()) return text ?: ""
+        return EMPHASIS.replace(text) { m ->
+            m.groups["bold"]?.value ?: m.groups["italic"]?.value ?: m.value
+        }
+    }
+
     fun toSpans(text: String?): List<Span> {
         val source = text ?: ""
         val spans = mutableListOf<Span>()

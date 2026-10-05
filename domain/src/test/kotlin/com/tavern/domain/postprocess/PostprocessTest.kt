@@ -180,4 +180,26 @@ class PostprocessTest {
             rulesText = "最棒的是(\\S+) => $1是最棒的",
         ))
     }
+
+    // ------------------------------------------------------------ 动作星号（关掉斜体开关时）
+
+    @Test
+    fun stripEmphasisKeepsInnerText() {
+        assertEquals("她微微一笑", Postprocess.stripEmphasis("*她微微一笑*"))
+        assertEquals("很重", Postprocess.stripEmphasis("**很重**"))
+        assertEquals("她说：好。然后走了。", Postprocess.stripEmphasis("她说：好。*然后走了*。"))
+    }
+
+    @Test
+    fun stripEmphasisLeavesPlainTextAndStrayAsterisk() {
+        assertEquals("没有星号", Postprocess.stripEmphasis("没有星号"))
+        assertEquals("2 * 3 = 6", Postprocess.stripEmphasis("2 * 3 = 6"))
+        assertEquals("", Postprocess.stripEmphasis(""))
+    }
+
+    @Test
+    fun stripEmphasisAllowsMultilineAction() {
+        assertEquals("她抬头\n又低头", Postprocess.stripEmphasis("*她抬头\n又低头*"))
+    }
+
 }

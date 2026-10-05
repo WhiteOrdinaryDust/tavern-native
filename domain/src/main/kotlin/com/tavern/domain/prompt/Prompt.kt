@@ -7,11 +7,17 @@ import com.tavern.domain.models.Message
 private val USER_PREFIX = Regex("""^\s*\{\{\s*user\s*\}\}\s*[:：]\s*""", RegexOption.IGNORE_CASE)
 private val CHAR_PREFIX = Regex("""^\s*\{\{\s*char\s*\}\}\s*[:：]\s*""", RegexOption.IGNORE_CASE)
 
-private const val DEFAULT_SYSTEM = (
-    "你正在进行沉浸式角色扮演。严格遵循角色的设定、语气与说话习惯，" +
-        "始终以 {char} 的身份回应，不要跳出角色，不要提到自己是 AI、模型或助手。" +
-        "动作、神态、环境描写用星号包裹，例如 *她微微一笑*。"
-    )
+private const val DEFAULT_SYSTEM_BASE = (
+    "你正在进行沉浸式角色扮演。严格遵循角色的设定、语气与说话习惯；" +
+        "始终以 {char} 的身份回应，不要跳出角色，不要提到自己是 AI、模型或助手。"
+)
+
+/**
+ * 「动作/神态用星号包裹」这条要求。
+ *
+ * 跟随「动作斜体」开关：关掉时**整句都不发**（省 token，也避免模型按惯性继续写星号）。
+ */
+private const val ACTION_HINT = "动作、神态、环境描写用星号包裹，例如 *她微微一笑*。"
 
 /**
  * Prompt 组装：角色卡 + 历史 → OpenAI messages。
@@ -100,7 +106,9 @@ object Prompt {
         val parts = mutableListOf<String>()
 
         val custom = substitute(character.systemPrompt, charName, userName).trim()
-        parts += custom.ifEmpty { DEFAULT_SYSTEM.replace("{char}", charName) }
+        val head = custom.ifEmpty { DEFAULT_SYSTEM_BASE.replace("{char}", charName) }
+        // 开关打开才要求模型用星号写动作；关掉就不提（避免"输出惯性"）
+        parts += if (settings.formatActions) head + ACTION_HINT else head
 
         val details = mutableListOf<String>()
         if (character.description.trim().isNotEmpty()) {

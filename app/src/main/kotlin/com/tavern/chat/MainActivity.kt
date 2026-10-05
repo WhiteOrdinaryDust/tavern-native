@@ -378,6 +378,20 @@ private fun ChatScreen(
     var chat by remember { mutableStateOf<Chat?>(null) }
     var messages by remember { mutableStateOf<List<Message>>(emptyList()) }
     var input by remember { mutableStateOf("") }
+    // 草稿按"角色/群"为键存本地：切界面、切页签、重启 App 都还在
+    val draftKey = "draft_" + (group?.id ?: character.id)
+    androidx.compose.runtime.LaunchedEffect(draftKey) {
+        bg({ store0(context).readKv(draftKey) ?: "" }) { saved ->
+            if (input.isEmpty() && saved.isNotEmpty()) input = saved
+        }
+    }
+    val latestInput = androidx.compose.runtime.rememberUpdatedState(input)
+    androidx.compose.runtime.DisposableEffect(draftKey) {
+        onDispose {
+            val text = latestInput.value
+            bg({ store0(context).writeKv(draftKey, text) })
+        }
+    }
     var busy by remember { mutableStateOf(false) }
     var streamingText by remember { mutableStateOf("") }
     var streamingReasoning by remember { mutableStateOf("") }
@@ -708,6 +722,7 @@ private fun ChatScreen(
         }
         if (queue.isEmpty()) return
         input = ""
+        bg({ store0(context).writeKv("draft_" + (group?.id ?: character.id), "") })
         error = ""
         bg({
             val store = RoomStore(TavernDatabase.open(context))
@@ -1685,17 +1700,19 @@ private fun BubbleBody(
                 )
             }
         }
+        // 关掉「动作斜体」时：即便模型惯性写了 *动作*，也去掉星号显示成普通文字
+        val bodyText = if (formatActions) text else Postprocess.stripEmphasis(text)
         if (renderMarkdown) {
             // Markdown 里的 Text 默认取 LocalContentColor —— 给它提供正文字色，
             // 否则「正文字色」这个设置对 Markdown 内容完全无效（深色主题下正文会发黑）
             androidx.compose.runtime.CompositionLocalProvider(
                 androidx.compose.material3.LocalContentColor provides bodyColor,
             ) {
-                MarkdownBody(text)
+                MarkdownBody(bodyText)
             }
         } else {
             Text(
-                styledText(text, formatActions),
+                styledText(bodyText, formatActions),
                 color = bodyColor,
                 style = MaterialTheme.typography.bodyMedium.copy(
                     fontSize = Theme.scaled(14, LocalAppearance.current.fontScale).sp,

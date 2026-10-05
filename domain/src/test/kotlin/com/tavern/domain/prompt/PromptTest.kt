@@ -191,4 +191,38 @@ class PromptTest {
         assertTrue(bodies.contains("user" to "大家好"))
         assertEquals("user" to "继续", bodies.last())
     }
+
+    // ------------------------------------------------------------ 动作提示跟随开关
+
+    @Test
+    fun systemPromptHasActionHintWhenFormatActionsOn() {
+        val prompt = Prompt.buildSystemPrompt(
+            Character(name = "林月"),
+            ApiSettings(formatActions = true),
+            "阿伟",
+        )
+        assertTrue(prompt.contains("星号"), "开启时应包含动作提示")
+    }
+
+    @Test
+    fun systemPromptDropsActionHintWhenFormatActionsOff() {
+        val prompt = Prompt.buildSystemPrompt(
+            Character(name = "林月"),
+            ApiSettings(formatActions = false),
+            "阿伟",
+        )
+        assertFalse(prompt.contains("星号"), "关闭时不应再发这条要求（省 token、避免惯性）")
+        assertTrue(prompt.contains("沉浸式角色扮演"), "其余系统提示仍在")
+    }
+
+    @Test
+    fun actionHintFollowsSwitchForCustomSystemPrompt() {
+        val char = Character(name = "林月", systemPrompt = "你是林月。")
+        val on = Prompt.buildSystemPrompt(char, ApiSettings(formatActions = true), "阿伟")
+        val off = Prompt.buildSystemPrompt(char, ApiSettings(formatActions = false), "阿伟")
+        assertTrue(on.contains("星号"))
+        assertFalse(off.contains("星号"))
+        assertTrue(off.startsWith("你是林月。"))
+    }
+
 }
