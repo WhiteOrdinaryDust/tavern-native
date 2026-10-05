@@ -42,41 +42,60 @@ jobs:
         run: ./gradlew :app:assembleRelease --console=plain
 
       # 校验只是"体检"：失败也不该拦住发布（用 continue-on-error）
+      # 先定位真实产物再规范到固定路径：AGP 在不同环境下的输出名可能不同
+      - name: 定位并规范产物（含诊断）
+        run: |
+          mkdir -p dist
+          {
+            echo "## 自动构建产物信息"
+            echo ""
+            echo "运行的提交: $GITHUB_SHA"
+            echo ""
+            echo "在 app/build/outputs 下找到的 APK："
+            echo '```'
+            find app/build/outputs -name "*.apk" -printf "%p  %s bytes\n" || true
+            echo '```'
+          } > dist/notes.md
+          APK=$(find app/build/outputs -name "*.apk" | head -1)
+          if [ -z "$APK" ]; then
+            echo "没找到任何 APK 文件" | tee -a dist/notes.md
+            exit 1
+          fi
+          cp "$APK" dist/tavern-release.apk
+          {
+            echo ""
+            echo "已规范为: dist/tavern-release.apk"
+            echo '```'
+            ls -l dist/
+            sha256sum dist/tavern-release.apk
+            echo '```'
+            echo ""
+            echo "> 本项目**公开签名密钥**（见 \`signing/\`），任何人都可以构建可覆盖安装的包。请只从你信任的来源安装。"
+          } >> dist/notes.md
+          cat dist/notes.md
+
       - name: 校验签名与版本号
         continue-on-error: true
         run: |
           SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
           echo "SDK=$SDK"
-          ls "$SDK/build-tools" || true
-          APK=app/build/outputs/apk/release/app-release.apk
-          ls -l "$APK"
           BT=$(ls "$SDK/build-tools" | sort -V | tail -1)
-          echo "使用 build-tools: $BT"
-          # 不依赖可执行位：显式用 sh 执行（某些镜像上 apksigner 没有 +x）
-          sh "$SDK/build-tools/$BT/apksigner" verify --print-certs "$APK" || true
-          sh "$SDK/build-tools/$BT/aapt" dump badging "$APK" | head -1 || true
-          sha256sum "$APK"
+          echo "build-tools: $BT"
+          sh "$SDK/build-tools/$BT/apksigner" verify --print-certs dist/tavern-release.apk || true
+          sh "$SDK/build-tools/$BT/aapt" dump badging dist/tavern-release.apk | head -1 || true
 
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: tavern-release-apk
-          path: app/build/outputs/apk/release/app-release.apk
-
-      - name: 列出产物（诊断用）
-        run: |
-          ls -l app/build/outputs/apk/release/
-          sha256sum app/build/outputs/apk/release/*.apk
+          path: dist/tavern-release.apk
+          if-no-files-found: error
 
       - name: 附到 Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: app/build/outputs/apk/release/app-release.apk
-          fail_on_unmatched_files: true      # 匹配不到文件就报错，别静默成功
+          files: dist/tavern-release.apk
+          fail_on_unmatched_files: true
+          body_path: dist/notes.md
           name: 酒馆 ${{ github.ref_name }}
-          body: |
-            自动构建产物（由 GitHub Actions 从本 tag 的源码构建）。
-
-            > 本项目**公开签名密钥**（见 `signing/`），任何人都可以构建可覆盖安装的包。
-            > 请只从你信任的来源安装。
