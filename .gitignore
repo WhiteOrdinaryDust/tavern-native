@@ -4,5 +4,5 @@ local.properties
 .idea/
 *.iml
 .kotlin/
-keystore/
-keystore.properties
+/keystore/
+/keystore.properties
