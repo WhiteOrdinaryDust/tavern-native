@@ -10,24 +10,46 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
-      - name: 核心单测
-        run: ./gradlew :domain:test
-      - name: 构建正式包
-        run: ./gradlew :app:assembleRelease
+
+      # Windows 上提交的 gradlew 不带可执行位，这里补一次（否则 Permission denied）
+      - name: 修正 gradlew 权限
+        run: chmod +x ./gradlew
+
+      - name: 安装 Android SDK（compileSdk 36 / buildTools 35）
+        uses: android-actions/setup-android@v3
+      - run: |
+          yes | sdkmanager --licenses > /dev/null 2>&1 || true
+          sdkmanager "platforms;android-36" "build-tools;35.0.0" > /dev/null || true
+
+      - name: 核心单测（214 项）
+        run: ./gradlew :domain:test --console=plain
+
+      - name: 构建正式包（使用仓库公开的 signing/ 密钥签名）
+        run: ./gradlew :app:assembleRelease --console=plain
+
       - name: 校验签名
         run: |
-          BUILD_TOOLS=$(ls $ANDROID_HOME/build-tools | tail -1)
-          $ANDROID_HOME/build-tools/$BUILD_TOOLS/apksigner verify --print-certs app/build/outputs/apk/release/app-release.apk
+          BUILD_TOOLS=$(ls "$ANDROID_HOME/build-tools" | tail -1)
+          "$ANDROID_HOME/build-tools/$BUILD_TOOLS/apksigner" verify --print-certs \
+            app/build/outputs/apk/release/app-release.apk
+
       - uses: actions/upload-artifact@v4
         with:
           name: tavern-release-apk
           path: app/build/outputs/apk/release/app-release.apk
+
       - name: 附到 Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
           files: app/build/outputs/apk/release/app-release.apk
+          body: |
+            自动构建产物（由 GitHub Actions 从本 tag 的源码构建）。
+
+            > 本项目**公开签名密钥**（见 `signing/`），任何人都可以构建可覆盖安装的包。
+            > 请只从你信任的来源安装。
