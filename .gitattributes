@@ -1,0 +1,6 @@
+﻿# 统一按 LF 存储，避免 Windows/Linux 换行差异造成整文件 diff
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.jks binary
+*.apk binary
