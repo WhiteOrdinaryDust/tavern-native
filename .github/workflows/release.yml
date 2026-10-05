@@ -21,11 +21,16 @@ jobs:
       - name: 修正 gradlew 权限
         run: chmod +x ./gradlew
 
-      - name: 安装 Android SDK（compileSdk 36 / buildTools 35）
-        uses: android-actions/setup-android@v3
-      - run: |
+      # GitHub 的 ubuntu runner 已预装 Android SDK，直接用它的 sdkmanager 补齐缺的组件
+      # （不要用第三方 setup-android action：它会与预装环境冲突）
+      - name: 补齐 Android SDK 组件（android-36 / build-tools 35、36）
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
           yes | sdkmanager --licenses > /dev/null 2>&1 || true
-          sdkmanager "platforms;android-36" "build-tools;35.0.0" > /dev/null || true
+          sdkmanager "platforms;android-36" || true
+          sdkmanager "build-tools;35.0.0" || true
+          sdkmanager "build-tools;36.0.0" || true
+          sdkmanager --list_installed | head -20
 
       - name: 核心单测（214 项）
         run: ./gradlew :domain:test --console=plain
