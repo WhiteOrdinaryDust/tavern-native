@@ -177,7 +177,7 @@ fun CharacterEditDialog(
                 OutlinedTextField(
                     value = mesExample,
                     onValueChange = { mesExample = it },
-                    label = { Text("示例对话（<START> 分隔）") },
+                    label = { Text("示例对话（可直接粘一段话；或每行以「名字：」开头，多段用 <START> 分隔）") },
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Spacer(Modifier.height(6.dp))

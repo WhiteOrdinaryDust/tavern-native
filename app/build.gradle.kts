@@ -26,8 +26,8 @@ android {
         applicationId = "com.tavern.chat"
         minSdk = 24
         targetSdk = 36
-        versionCode = 73
-        versionName = "0.73.0"
+        versionCode = 76
+        versionName = "0.76.0"
     }
 
     signingConfigs {

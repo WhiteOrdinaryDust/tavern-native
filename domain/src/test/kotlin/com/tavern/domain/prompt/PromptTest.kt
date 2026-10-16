@@ -225,4 +225,38 @@ class PromptTest {
         assertTrue(off.startsWith("你是林月。"))
     }
 
+
+    @Test
+    fun parseMesExampleAcceptsPlainNames() {
+        val mes = "林月：在的\n阿伟：那走吧"
+        val parsed = Prompt.parseMesExample(mes, "林月", "阿伟")
+        assertEquals(2, parsed.size, "直接写名字也应被解析（否则用户会以为示例对话不生效）")
+        assertEquals("assistant", parsed[0]["role"])
+        assertEquals("在的", parsed[0]["content"])
+        assertEquals("user", parsed[1]["role"])
+        assertEquals("那走吧", parsed[1]["content"])
+    }
+
+
+    @Test
+    fun parseMesExamplePlainTextBecomesAssistantExample() {
+        // 用户直接粘一段话（没有任何名字前缀）也应生效，而不是被丢掉
+        val parsed = Prompt.parseMesExample("她蹲在廊下逗猫，声音软糯如新蒸的米糕。", "林月", "阿伟")
+        assertEquals(1, parsed.size)
+        assertEquals("assistant", parsed[0]["role"])
+        assertEquals("她蹲在廊下逗猫，声音软糯如新蒸的米糕。", parsed[0]["content"])
+        // 空串 / null 仍然解析为空（不产生多余示例）
+        assertEquals(emptyList(), Prompt.parseMesExample("", "林月", "阿伟"))
+        assertEquals(emptyList(), Prompt.parseMesExample("   ", "林月", "阿伟"))
+    }
+
+    @Test
+    fun parseMesExampleWithPrefixesStillWins() {
+        // 一旦出现过名字前缀，就按前缀解析，不受兜底影响
+        val parsed = Prompt.parseMesExample("林月：在的\n阿伟：走吧", "林月", "阿伟")
+        assertEquals(2, parsed.size)
+        assertEquals("在的", parsed[0]["content"])
+        assertEquals("走吧", parsed[1]["content"])
+    }
+
 }

@@ -173,6 +173,8 @@ private fun App() {
     var showSettingsPage by remember { mutableStateOf(false) }
     // 主页页签放在这里：进聊天再退出时，要回到原来的页签（群聊就回群聊）
     var homeTab by remember { mutableStateOf(0) }
+    // 文件夹层级也放这里：从文件夹里的角色进聊天，退出后要回到那个文件夹
+    var homeFolder by remember { mutableStateOf("") }
 
     fun reload() {
         bg({
@@ -300,6 +302,11 @@ private fun App() {
             character = opened ?: characters.first(),
             group = currentGroup,
             members = characters,
+            onCharacterChanged = { updated ->
+                characters = characters.map { if (it.id == updated.id) updated else it }
+                // opened 只是 current 的派生值；同步更新 current，聊天页才会立刻用上新名字/新头像
+                if (current?.id == updated.id) current = updated
+            },
             onOpenSettings = { showSettingsPage = true },
             appearance = appearance,
             onAppearanceChanged = { updated ->
@@ -325,6 +332,8 @@ private fun App() {
             characters = characters,
             tab = homeTab,
             onTabChanged = { homeTab = it },
+            folder = homeFolder,
+            onFolderChanged = { homeFolder = it },
             onOpen = { current = it },
             onOpenGroup = { currentGroup = it },
             onOpenSettings = { showSettingsPage = true },
@@ -362,6 +371,7 @@ private fun ChatScreen(
     members: List<Character> = emptyList(),
     settings: ApiSettings,
     onSettingsChanged: (ApiSettings) -> Unit,
+    onCharacterChanged: (Character) -> Unit = {},
     appearance: Appearance,
     onAppearanceChanged: (Appearance) -> Unit,
     onOpenSettings: () -> Unit = {},
@@ -1416,7 +1426,8 @@ private fun ChatScreen(
             onDismiss = { editingSpeaker = null },
             onSave = { updated ->
                 editingSpeaker = null
-                bg({ store0(context).upsertCharacter(updated) })
+                // 写完要通知上层：否则聊天页拿的还是旧角色对象，名字/头像不会变
+                bg({ store0(context).upsertCharacter(updated) }) { onCharacterChanged(updated) }
             },
         )
     }
@@ -1449,6 +1460,7 @@ private fun ChatScreen(
     if (showSessions) {
         SessionDialog(
             character = character,
+            group = group,
             currentChatId = chat?.id,
             onDismiss = { showSessions = false },
             onOpen = { picked ->

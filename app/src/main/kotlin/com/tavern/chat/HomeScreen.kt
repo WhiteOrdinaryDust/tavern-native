@@ -83,13 +83,16 @@ fun HomeScreen(
     characters: List<Character>,
     tab: Int = 0,
     onTabChanged: (Int) -> Unit = {},
+    folder: String = "",
+    onFolderChanged: (String) -> Unit = {},
     onOpen: (Character) -> Unit,
     onOpenGroup: (com.tavern.domain.models.Group) -> Unit,
     onOpenSettings: () -> Unit,
     onChanged: () -> Unit,
 ) {
     val context = LocalContext.current
-    var currentFolder by remember { mutableStateOf("") }
+    // 由上层持有：进聊天再退出时才能回到原来的文件夹（原来放这里，一离开界面就丢了）
+    val currentFolder = folder
     var children by remember { mutableStateOf<List<com.tavern.domain.models.Folder>>(emptyList()) }
     var inFolder by remember { mutableStateOf<List<Character>>(emptyList()) }
     var creatingFolder by remember { mutableStateOf(false) }
@@ -242,7 +245,7 @@ fun HomeScreen(
                         )
                         // 空文件夹里也必须能出去（之前这里没有返回入口，进去就出不来了）
                         if (currentFolder.isNotEmpty()) {
-                            TextButton(onClick = { currentFolder = parentId }) {
+                            TextButton(onClick = { onFolderChanged(parentId) }) {
                                 Text("‹ 返回上一层")
                             }
                         }
@@ -259,7 +262,7 @@ fun HomeScreen(
                     item(key = "__crumb__") {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             if (currentFolder.isNotEmpty()) {
-                                TextButton(onClick = { currentFolder = parentId }) { Text("‹ 上一级") }
+                                TextButton(onClick = { onFolderChanged(parentId) }) { Text("‹ 上一级") }
                             }
                             Text(crumb, style = MaterialTheme.typography.labelMedium)
                         }
@@ -268,7 +271,7 @@ fun HomeScreen(
                 items(children, key = { it.id }) { folder ->
                     // 整行都能点进文件夹（以前只有文字可点，太窄）
                     Card(
-                        onClick = { currentFolder = folder.id },
+                        onClick = { onFolderChanged(folder.id) },
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {

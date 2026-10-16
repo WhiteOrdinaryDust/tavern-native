@@ -56,6 +56,18 @@ object Prompt {
     /** 把 `mes_example`（few-shot 对话示例）解析成消息列表。 */
     fun parseMesExample(mesExample: String?, charName: String, userName: String): List<Map<String, String>> {
         val messages = mutableListOf<Map<String, String>>()
+        // 除了 {{char}} / {{user}}，也接受直接写名字（例如「林月：……」）——
+        // 只认宏的话，用户按直觉写的内容会被静默丢弃，看起来"示例对话不生效"。
+        val charPrefix = if (charName.isBlank()) {
+            CHAR_PREFIX
+        } else {
+            Regex("^\\s*(?:\\{\\{\\s*char\\s*\\}\\}|" + Regex.escape(charName) + ")\\s*[:：]\\s*", RegexOption.IGNORE_CASE)
+        }
+        val userPrefix = if (userName.isBlank()) {
+            USER_PREFIX
+        } else {
+            Regex("^\\s*(?:\\{\\{\\s*user\\s*\\}\\}|" + Regex.escape(userName) + ")\\s*[:：]\\s*", RegexOption.IGNORE_CASE)
+        }
         var role: String? = null
         var buf = mutableListOf<String>()
 
@@ -78,19 +90,25 @@ object Prompt {
                 flush()
                 continue
             }
-            if (USER_PREFIX.containsMatchIn(line) && USER_PREFIX.find(line)?.range?.first == 0) {
+            if (userPrefix.containsMatchIn(line) && userPrefix.find(line)?.range?.first == 0) {
                 flush()
                 role = "user"
-                buf = mutableListOf(USER_PREFIX.replaceFirst(line, ""))
-            } else if (CHAR_PREFIX.find(line)?.range?.first == 0) {
+                buf = mutableListOf(userPrefix.replaceFirst(line, ""))
+            } else if (charPrefix.find(line)?.range?.first == 0) {
                 flush()
                 role = "assistant"
-                buf = mutableListOf(CHAR_PREFIX.replaceFirst(line, ""))
+                buf = mutableListOf(charPrefix.replaceFirst(line, ""))
             } else if (role != null) {
                 buf.add(line)
             }
         }
         flush()
+        // 兜底：整段都没写名字前缀（用户可能直接粘一段话）
+        // → 当成"角色的一段发言示例"，而不是静默丢弃
+        if (messages.isEmpty() && !mesExample.isNullOrBlank()) {
+            val content = substitute(mesExample.trim(), charName, userName)
+            if (content.isNotEmpty()) messages += mapOf("role" to "assistant", "content" to content)
+        }
         return messages
     }
 

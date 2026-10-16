@@ -28,6 +28,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.tavern.domain.models.Character
 import com.tavern.domain.models.Chat
+import com.tavern.domain.models.Group
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -40,6 +41,7 @@ import java.util.Locale
 @Composable
 fun SessionDialog(
     character: Character,
+    group: Group? = null,
     currentChatId: String?,
     onDismiss: () -> Unit,
     onOpen: (Chat) -> Unit,
@@ -55,10 +57,15 @@ fun SessionDialog(
     var tick by remember { mutableStateOf(0) }
     var query by remember { mutableStateOf("") }
 
-    LaunchedEffect(character.id, tick) {
+    // 群聊的会话归属是 groupId；角色会话归属是 characterId。查错归属 → 列表永远不增、切不回去
+    LaunchedEffect(character.id, group?.id, tick) {
         bg({
             val store = store0(context)
-            val list = store.listChats(characterId = character.id)
+            val list = if (group != null) {
+                store.listChats(groupId = group.id)
+            } else {
+                store.listChats(characterId = character.id)
+            }
             list to list.associate { it.id to store.countMessages(it.id) }
         }) { pair ->
             chats = pair.first
@@ -68,7 +75,7 @@ fun SessionDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("${character.name} 的会话") },
+        title = { Text(if (group != null) "${group.name} 的会话" else "${character.name} 的会话") },
         text = {
             Column {
                 if (chats.isEmpty()) {
@@ -140,7 +147,15 @@ fun SessionDialog(
         },
         confirmButton = {
             TextButton(onClick = {
-                bg({ store0(context).createChat(character.id) }) { created ->
+                bg({
+                    val store = store0(context)
+                    if (group != null) {
+                        // 群聊里新建会话必须带 groupId，否则会建出一个不属于本群的"角色会话"
+                        store.createChat("", title = "新会话", groupId = group.id)
+                    } else {
+                        store.createChat(character.id)
+                    }
+                }) { created ->
                     tick++
                     onOpen(created)
                 }

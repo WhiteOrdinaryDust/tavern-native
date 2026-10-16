@@ -372,4 +372,18 @@ class InMemoryStoreTest {
         store.clearWorldEntries(a.id)
         assertEquals(0, store.countWorldEntries(a.id))
     }
+
+    @Test
+    fun branchChatOfGroupKeepsGroup() {
+        val store = InMemoryStore()
+        val chat = store.createChat("", title = "群会话", groupId = "g1")
+        store.addMessage(chat.id, "user", "第一句")
+        store.addMessage(chat.id, "assistant", "第二句")
+        val first = store.listMessages(chat.id).first()
+        val branch = assertNotNull(store.branchChat(chat.id, first.id))
+        assertEquals("g1", branch.groupId, "分支必须留在同一个群")
+        assertTrue(branch.characterId.isEmpty(), "群聊分支不应该变成某个角色的会话")
+        assertEquals(2, store.listChats(groupId = "g1").size, "群里应能看到两条会话（原会话 + 分支）")
+    }
+
 }
