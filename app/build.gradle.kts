@@ -1,4 +1,4 @@
-import java.util.Properties
+﻿import java.util.Properties
 
 // 正式签名：密码放在工程根的 keystore.properties（不进版本库）
 val keystoreProps = Properties().apply {
@@ -26,8 +26,8 @@ android {
         applicationId = "com.tavern.chat"
         minSdk = 24
         targetSdk = 36
-        versionCode = 76
-        versionName = "0.76.0"
+        versionCode = 90
+        versionName = "0.90.0"
     }
 
     signingConfigs {

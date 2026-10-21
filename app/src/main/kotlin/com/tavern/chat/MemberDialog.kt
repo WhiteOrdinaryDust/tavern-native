@@ -25,7 +25,7 @@ import com.tavern.domain.models.Character
 import com.tavern.domain.models.Group
 
 /**
- * 群聊成员与禁言。
+ * 会话成员与禁言。
  *
  * 规则与 Flet 版一致：**解禁谁，谁就出场**；如果 TA 在这个会话里还没说过话，
  * 会把 TA 的开场白放进来（`_say_greeting` 的语义），避免反复解禁刷重复开场白。
@@ -108,7 +108,7 @@ fun MemberDialog(
                                 )
                             }
                             Spacer(Modifier.weight(1f))
-                            // 调换发言顺序：直接影响群聊「依次都回」的先后
+                            // 调换发言顺序：直接影响会话「依次都回」的先后
                             val index = group.members.indexOf(member.id)
                             fun saveOrder(ids: List<String>, tip: String) {
                                 val updated = group.copy(members = ids)
@@ -160,7 +160,7 @@ fun MemberDialog(
                                 val updated = group.copy(members = group.members + character.id)
                                 onGroupChanged(updated)
                                 bg({ store0(context).upsertGroup(updated) }) {
-                                    notice = "${character.name} 已加入群聊"
+                                    notice = "${character.name} 已加入会话"
                                 }
                             }) { Text("＋ ${character.name}") }
                         }

@@ -141,7 +141,7 @@ object Prompt {
         if (details.isNotEmpty()) parts += "角色设定：\n" + details.joinToString("\n")
 
         val persona = substitute(settings.userPersona, charName, userName).trim()
-        if (persona.isNotEmpty()) parts += "$userName 的人设（由玩家扮演）：\n$persona"
+        if (persona.isNotEmpty()) parts += "$userName 的人设：\n$persona"
 
         // 滚动摘要：把很久以前的剧情压缩进来，避免长会话里角色忘事
         val digest = substitute(summary, charName, userName).trim()
@@ -149,7 +149,7 @@ object Prompt {
             parts += "目前为止的故事（前情提要，帮你回忆之前发生过什么，不要直接复述）：\n$digest"
         }
 
-        parts += "你扮演 $charName，正在与 $userName 对话。只输出 $charName 的回复内容。"
+        parts += "你现在扮演 $charName。只写 $charName 的台词、动作与所见所想；不要替其他角色说话，也不要替别的角色做决定或行动。"
         if (settings.systemExtra.trim().isNotEmpty()) parts += settings.systemExtra.trim()
         // 联网资料放在节奏协议之前：资料是"事实"，节奏是"怎么写"
         if (webContext.trim().isNotEmpty()) parts += webContext.trim()
@@ -218,12 +218,12 @@ object Prompt {
         val names = others.filter { it.name.trim().isNotEmpty() }.joinToString("、") { it.name }
         val lines = listOf(
             if (names.isNotEmpty()) {
-                "这是一场多人对话（群聊）。在场的人：$names、$userName（玩家）。"
+                "这是一场多人对话（群聊）。在场的角色：$names。"
             } else {
-                "这是一场多人对话（群聊）。在场的人：$userName（玩家）。"
+                "这是一场多人对话（群聊）。"
             },
             "你只扮演 ${speaker.name}：只写 ${speaker.name} 自己的台词与动作，" +
-                "不要替 $userName 或其他人说话，也不要写旁白解说。",
+                "不要替其他角色说话，也不要写旁白解说。",
             "回复短一些，像在群里接话那样自然。",
         )
         return base + "\n\n" + lines.joinToString("\n")

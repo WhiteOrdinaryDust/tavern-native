@@ -99,6 +99,7 @@ import com.tavern.domain.models.Group
 import com.tavern.domain.models.Message
 import com.tavern.domain.memory.Memory
 import com.tavern.domain.memory.SUMMARY_MAX_TOKENS
+import com.tavern.domain.group.GroupPrefs
 import com.tavern.domain.postprocess.Postprocess
 import com.tavern.domain.prompt.Prompt
 import com.tavern.domain.rhythm.Rhythm
@@ -339,25 +340,7 @@ private fun App() {
             onOpenSettings = { showSettingsPage = true },
             onChanged = { reload() },
         )
-        else -> ChatScreen(
-            character = opened,
-            onOpenSettings = { showSettingsPage = true },
-            appearance = appearance,
-            onAppearanceChanged = { updated ->
-                appearance = updated
-                bg({ store0(context).saveAppearance(updated) })
-            },
-            settings = settings,
-            onSettingsChanged = { updated ->
-                settings = updated
-                bg({ RoomStore(TavernDatabase.open(context)).saveSettings(updated) })
-            },
-            onBack = {
-                current = null
-                reload()
-            },
-        )
-    }
+}
     }
     }
 }
@@ -388,6 +371,30 @@ private fun ChatScreen(
     var chat by remember { mutableStateOf<Chat?>(null) }
     var messages by remember { mutableStateOf<List<Message>>(emptyList()) }
     var input by remember { mutableStateOf("") }
+    var playingAs by remember { mutableStateOf<Character?>(null) }
+    var memberKinds by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+    var showPlayAs by remember { mutableStateOf(false) }
+    val ownerKey = group?.id ?: character.id
+    val effectiveKinds: Map<String, String> = if (group == null) {
+        buildMap {
+            playingAs?.let { put(it.id, GroupPrefs.USER) }
+            put(character.id, GroupPrefs.NPC)
+        }
+    } else {
+        memberKinds
+    }
+    androidx.compose.runtime.LaunchedEffect(chat?.id) {
+        val cid = chat?.id ?: return@LaunchedEffect
+        bg({
+            val store = store0(context)
+            store.readKv("playas_" + cid) to store.readKv("memberkind_" + ownerKey)
+        }) { pair ->
+            val who = pair.first ?: ""
+            playingAs = members.firstOrNull { it.id == who }
+            memberKinds = GroupPrefs.parseKinds(pair.second)
+            if (playingAs == null) showPlayAs = true
+        }
+    }
     // 草稿按"角色/群"为键存本地：切界面、切页签、重启 App 都还在
     val draftKey = "draft_" + (group?.id ?: character.id)
     androidx.compose.runtime.LaunchedEffect(draftKey) {
@@ -609,7 +616,14 @@ private fun ChatScreen(
                     webContext = webContext,
                 )
             } else {
-                Prompt.buildMessages(
+                                val promptSettings = settings.copy(
+                    userName = playingAs?.name ?: settings.userName,
+                    userPersona = playingAs?.let { who ->
+                        listOf(who.description, who.personality).filter { it.isNotBlank() }
+                            .joinToString(String(charArrayOf(10.toChar()))).ifEmpty { settings.userPersona }
+                    } ?: settings.userPersona,
+                )
+Prompt.buildMessages(
                     speaker, effective, history,
                     userInput = userText,
                     summary = target.summary,
@@ -716,7 +730,7 @@ private fun ChatScreen(
     fun send() {
         val text = input.trim()
         val target = chat ?: return
-        if (text.isEmpty() || busy) return
+        if (busy) return   // 空输入也允许：等于"让角色接着往下演"
         if (!settings.configured) {
             error = "请先在右上角填 API 地址与模型名"
             showSettings = true
@@ -725,7 +739,8 @@ private fun ChatScreen(
         val currentGroup = group
         // 你发言之后：所有没被禁言的成员依次各回一句
         val queue = if (currentGroup != null) {
-            val active = currentGroup.activeMembers().mapNotNull { id -> members.firstOrNull { it.id == id } }
+            val aiIds = GroupPrefs.aiSpeakers(currentGroup.members, effectiveKinds, currentGroup.muted, playingAs?.id)
+            val active = aiIds.mapNotNull { id -> members.firstOrNull { it.id == id } }
             if (active.isEmpty()) members.take(1) else active
         } else {
             listOf(character)
@@ -733,15 +748,18 @@ private fun ChatScreen(
         if (queue.isEmpty()) return
         input = ""
         bg({ store0(context).writeKv("draft_" + (group?.id ?: character.id), "") })
+        // 空输入 = 让角色接着演：不写入"用户"消息，只在本次请求里放一条临时提示
+        val continuing = text.isEmpty()
+        val userText = if (continuing) "（接着上一段继续写，不要重复已经说过的话）" else text
         error = ""
         bg({
             val store = RoomStore(TavernDatabase.open(context))
-            store.addMessage(target.id, "user", text)
+            if (!continuing) store.addMessage(target.id, "user", text)
             store.autotitleChat(target.id, text)
             store.listMessages(target.id)
         }) { list ->
             messages = list
-            generateFor(queue.first(), target, text, queue.drop(1))
+            generateFor(queue.first(), target, userText, queue.drop(1))
         }
     }
 
@@ -1033,6 +1051,22 @@ private fun ChatScreen(
                         },
                     )
                     Spacer(Modifier.width(8.dp))
+                    Box(
+                        modifier = Modifier
+                            .size(34.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                            .clickable { showPlayAs = true },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            com.tavern.domain.postprocess.Postprocess
+                                .avatarLines((playingAs ?: character).name)
+                                .joinToString(""),
+                            style = MaterialTheme.typography.labelMedium,
+                        )
+                    }
+                    Spacer(Modifier.width(6.dp))
                     if (busy) {
                         Box(
                             modifier = Modifier
@@ -1432,12 +1466,32 @@ private fun ChatScreen(
         )
     }
 
+    if (showPlayAs) {
+        PlayAsDialog(
+            candidates = if (group == null) members else members.filter { it.id in group.members },
+            kinds = effectiveKinds,
+            current = playingAs,
+            onMove = { id, kind ->
+                val updated = GroupPrefs.withKind(effectiveKinds, id, kind)
+                memberKinds = updated
+                bg({ store0(context).writeKv("memberkind_" + ownerKey, GroupPrefs.toJson(updated)) })
+            },
+            onPick = { picked ->
+                playingAs = picked
+                showPlayAs = false
+                chat?.let { c -> bg({ store0(context).writeKv("playas_" + c.id, picked.id) }) }
+            },
+        )
+    }
+
     if (showMembers) {
         val activeGroup = group
         if (activeGroup != null) {
             MemberDialog(
                 group = activeGroup,
-                members = members.filter { it.id in activeGroup.members },
+                members = members.filter {
+                it.id in GroupPrefs.muteMenuMembers(activeGroup.members, effectiveKinds)
+            },
                 candidates = members,
                 chatId = chat?.id,
                 onDismiss = { showMembers = false },

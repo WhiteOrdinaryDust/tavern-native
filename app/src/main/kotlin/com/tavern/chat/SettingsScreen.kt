@@ -103,7 +103,6 @@ fun SettingsScreen(
                 TextButton(onClick = { tab = 2 }) { Text("节奏") }
                 TextButton(onClick = { tab = 3 }) { Text("输出") }
                 TextButton(onClick = { tab = 4 }) { Text("开关") }
-                TextButton(onClick = { tab = 5 }) { Text("角色") }
             }
             Column(
                 modifier = Modifier
@@ -122,7 +121,7 @@ fun SettingsScreen(
                         onSettingsChanged,
                         onAppearanceChanged,
                     )
-                    else -> RoleTab(settings, onSettingsChanged)
+                    else -> LookTab(appearance, onAppearanceChanged)
                 }
             }
         }

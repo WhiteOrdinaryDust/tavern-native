@@ -1,6 +1,7 @@
 package com.tavern.data
 
 import com.tavern.domain.models.ApiSettings
+import com.tavern.domain.group.GroupPrefs
 import com.tavern.domain.models.Character
 import com.tavern.domain.models.Chat
 import com.tavern.domain.models.Folder
@@ -250,7 +251,7 @@ class RoomStore(private val db: TavernDatabase) {
         return chat
     }
 
-    fun primaryChat(characterId: String): Chat =
+fun primaryChat(characterId: String): Chat =
         listChats(characterId = characterId).firstOrNull() ?: createChat(characterId)
 
     fun primaryGroupChat(groupId: String, title: String = ""): Chat =
@@ -403,7 +404,7 @@ class RoomStore(private val db: TavernDatabase) {
     fun createGroup(name: String, memberIds: List<String>, folderId: String = ""): Group =
         upsertGroup(
             Group(
-                name = name.ifEmpty { "新群聊" }, members = memberIds, muted = memberIds,
+                name = name.ifEmpty { "新会话" }, members = memberIds, muted = memberIds,
                 folderId = folderId,
             ),
         )

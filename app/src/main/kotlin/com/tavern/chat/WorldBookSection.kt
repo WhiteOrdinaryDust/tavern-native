@@ -522,7 +522,7 @@ fun WorldBookSection() {
             text = {
                 Text(
                     "「${book.name}」及其 ${counts[book.id] ?: 0} 条条目会一起删除，无法恢复。" +
-                        "（已把它导入的角色/群聊会少一本书）",
+                        "（已把它导入的角色/会话会少一本书）",
                     style = MaterialTheme.typography.bodySmall,
                 )
             },

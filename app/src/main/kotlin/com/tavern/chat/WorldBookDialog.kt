@@ -30,7 +30,7 @@ import com.tavern.domain.models.WorldBook
 import com.tavern.domain.models.WorldEntry
 
 /**
- * 聊天内的世界书（按角色 / 按群聊导入）。
+ * 聊天内的世界书（按角色 / 按会话导入）。
  *
  * - **已导入**（默认展开）：☑ 生效 / ☐ 停用；**点书名可展开条目，列出每条的关键词**
  *   （世界书多了记不住名词，这里直接枚举，不用再点进去）
@@ -91,7 +91,7 @@ fun WorldBookDialog(
                     Spacer(Modifier.height(4.dp))
                 }
                 Text(
-                    "按「角色 / 群聊」导入；导入后还要 ☑ 才生效。点书名可看这本书里有哪些条目（关键词）。",
+                    "按「角色 / 会话」导入；导入后还要 ☑ 才生效。点书名可看这本书里有哪些条目（关键词）。",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

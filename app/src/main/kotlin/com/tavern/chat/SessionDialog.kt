@@ -57,7 +57,7 @@ fun SessionDialog(
     var tick by remember { mutableStateOf(0) }
     var query by remember { mutableStateOf("") }
 
-    // 群聊的会话归属是 groupId；角色会话归属是 characterId。查错归属 → 列表永远不增、切不回去
+    // 会话的会话归属是 groupId；角色会话归属是 characterId。查错归属 → 列表永远不增、切不回去
     LaunchedEffect(character.id, group?.id, tick) {
         bg({
             val store = store0(context)
@@ -75,7 +75,7 @@ fun SessionDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (group != null) "${group.name} 的会话" else "${character.name} 的会话") },
+        title = { Text(if (group != null) "${group.name} 的子会话" else "${character.name} 的子会话") },
         text = {
             Column {
                 if (chats.isEmpty()) {
@@ -150,7 +150,7 @@ fun SessionDialog(
                 bg({
                     val store = store0(context)
                     if (group != null) {
-                        // 群聊里新建会话必须带 groupId，否则会建出一个不属于本群的"角色会话"
+                        // 会话里新建会话必须带 groupId，否则会建出一个不属于本群的"角色会话"
                         store.createChat("", title = "新会话", groupId = group.id)
                     } else {
                         store.createChat(character.id)

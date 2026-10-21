@@ -214,11 +214,17 @@ fun HomeScreen(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                TextButton(onClick = { onTabChanged(0) }) { Text(if (tab == 0) "● 角色" else "○ 角色") }
-                TextButton(onClick = { onTabChanged(1) }) { Text(if (tab == 1) "● 群聊" else "○ 群聊") }
-                TextButton(onClick = { onTabChanged(2) }) { Text(if (tab == 2) "● 世界书" else "○ 世界书") }
-                Spacer(Modifier.weight(1f))
-                if (tab == 0) {
+TextButton(onClick = { onTabChanged(0) }) { Text(if (tab == 0) "● 会话" else "○ 会话") }
+TextButton(onClick = { onTabChanged(1) }) { Text(if (tab == 1) "● 角色卡" else "○ 角色卡") }
+TextButton(onClick = { onTabChanged(2) }) { Text(if (tab == 2) "● 世界书" else "○ 世界书") }
+            }
+            // 角色卡页的两个操作单独占一行：不影响页签宽度，也不会被挤成两行
+            if (tab == 1) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
                     TextButton(onClick = { picker.launch(arrayOf("image/png", "application/json", "*/*")) }) {
                         Text("导入卡片")
                     }
@@ -228,14 +234,14 @@ fun HomeScreen(
             if (tab == 2) {
                 com.tavern.chat.WorldBookSection()
             }
-            if (tab == 1) {
+            if (tab == 0) {
                 com.tavern.chat.GroupSection(
                     characters = characters,
                     onOpen = onOpenGroup,
                     onChanged = onChanged,
                 )
             }
-            if (tab == 0) {
+            if (tab == 1) {
             if (inFolder.isEmpty() && children.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -295,7 +301,7 @@ fun HomeScreen(
                     key = { it.id },
                 ) { character ->
                     Card(
-                        onClick = { onOpen(character) },
+                        onClick = { editingCharacter = character },
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         Row(

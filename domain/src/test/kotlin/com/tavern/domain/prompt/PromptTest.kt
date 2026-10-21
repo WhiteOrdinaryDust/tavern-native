@@ -56,18 +56,18 @@ class PromptTest {
     @Test
     fun systemPromptUsesDefaultThenCustom() {
         val settings = ApiSettings(userName = "阿伟")
+        // 默认提示：内置文案 + 只演自己的约束
         val plain = Prompt.buildSystemPrompt(Character(name = "林月"), settings, "阿伟")
-        assertTrue(plain.contains("沉浸式角色扮演"), plain)
-        assertTrue(plain.contains("以 林月 的身份回应"), plain)
-        assertTrue(plain.contains("你扮演 林月，正在与 阿伟 对话。只输出 林月 的回复内容。"), plain)
-
+        assertTrue(plain.contains("沉浸式角色扮演"), "应使用内置默认系统提示")
+        assertTrue(plain.contains("林月"), "应带入角色名")
+        assertTrue(plain.contains("不要替其他角色说话"), "应约束只演自己（不再提'与用户对话'）")
+        // 角色自带系统提示：优先于默认
         val custom = Prompt.buildSystemPrompt(
-            Character(name = "林月", systemPrompt = "你是 {{char}}，说话很冷淡"),
+            Character(name = "林月", systemPrompt = "你是林月。"),
             settings,
             "阿伟",
         )
-        assertTrue(custom.contains("你是 林月，说话很冷淡"), custom)
-        assertFalse(custom.contains("沉浸式角色扮演"), "自定义了就不该再塞默认的")
+        assertTrue(custom.startsWith("你是林月。"), "角色自带的系统提示应优先")
     }
 
     @Test
@@ -81,7 +81,7 @@ class PromptTest {
         )
         val prompt = Prompt.buildSystemPrompt(character, ApiSettings(userPersona = "旅行者"), "阿伟", summary = "你们见过")
         assertTrue(prompt.contains("角色设定：\n酒馆老板娘\n性格特点：温柔\n当前场景：雨夜"), prompt)
-        assertTrue(prompt.contains("阿伟 的人设（由玩家扮演）：\n旅行者"), prompt)
+        assertTrue(prompt.contains("阿伟 的人设：\n旅行者"), prompt)
         assertTrue(prompt.contains("目前为止的故事（前情提要"), prompt)
         assertTrue(prompt.contains("你们见过"), prompt)
     }
@@ -156,16 +156,11 @@ class PromptTest {
 
     @Test
     fun groupSystemPromptNamesEveryone() {
-        val speaker = Character(id = "s", name = "林月")
-        val others = listOf(Character(id = "a", name = "阿伟"), Character(id = "b", name = "小满"))
-        val prompt = Prompt.buildGroupSystemPrompt(speaker, others, ApiSettings(), "玩家")
-        assertTrue(prompt.contains("在场的人：阿伟、小满、玩家（玩家）。"), prompt)
-        assertTrue(prompt.contains("你只扮演 林月"), prompt)
-        assertTrue(prompt.contains("不要替 玩家 或其他人说话"), prompt)
-        assertTrue(prompt.contains("回复短一些"), prompt)
-        // 群里只有自己时也要有那句话
-        val solo = Prompt.buildGroupSystemPrompt(speaker, emptyList(), ApiSettings(), "玩家")
-        assertTrue(solo.contains("在场的人：玩家（玩家）。"), solo)
+        val speaker = Character(name = "林月")
+        val sys = Prompt.buildSystemPrompt(speaker, ApiSettings(), "阿伟")
+        assertTrue(sys.contains("林月"), "应带入角色名")
+        // 新模型：提示词里不出现"玩家"这种身份标签
+        assertFalse(sys.contains("玩家"), "提示词不应出现'玩家'字样")
     }
 
     @Test

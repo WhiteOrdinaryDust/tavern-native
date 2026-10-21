@@ -37,7 +37,7 @@ import com.tavern.domain.models.Group
 import com.tavern.domain.util.nowSeconds
 
 /**
- * 群聊列表 + 建群。
+ * 会话列表 + 建群。
  *
  * 建群规则与 Flet 版一致：**新群默认全员禁言**，之后你解禁谁，谁才出场
  * （`InMemoryStore.createGroup` / `RoomStore.createGroup` 都是这么做的，也有测试）。
@@ -52,16 +52,17 @@ fun GroupSection(
     var groups by remember { mutableStateOf<List<Group>>(emptyList()) }
     var creating by remember { mutableStateOf(false) }
     var tick by remember { mutableStateOf(0) }
-    // 群聊也有文件夹（kind = "group"），与角色那棵树互不影响
+    // 会话也有文件夹（kind = "group"），与角色那棵树互不影响
     var currentFolder by remember { mutableStateOf("") }
     var groupFolders by remember { mutableStateOf<List<com.tavern.domain.models.Folder>>(emptyList()) }
-    var crumb by remember { mutableStateOf("全部群聊") }
+    var crumb by remember { mutableStateOf("全部会话") }
     var parentId by remember { mutableStateOf("") }
     var folderCounts by remember { mutableStateOf<Map<String, Int>>(emptyMap()) }
     var allGroupFolders by remember { mutableStateOf<List<com.tavern.domain.models.Folder>>(emptyList()) }
     var movingGroup by remember { mutableStateOf<com.tavern.domain.models.Group?>(null) }
     var pinned by remember { mutableStateOf<Set<String>>(emptySet()) }
     var renamingFolder by remember { mutableStateOf<com.tavern.domain.models.Folder?>(null) }
+    var renamingGroup by remember { mutableStateOf<Group?>(null) }
     var pendingDelete by remember { mutableStateOf<(() -> Unit)?>(null) }
     var pendingWhat by remember { mutableStateOf("") }
 
@@ -76,7 +77,7 @@ fun GroupSection(
             GroupQuad(
                 kids,
                 store.listGroups(currentFolder),
-                if (path.isEmpty()) "全部群聊" else path.joinToString(" / ") { it.title },
+                if (path.isEmpty()) "全部会话" else path.joinToString(" / ") { it.title },
                 path.dropLast(1).lastOrNull()?.id ?: "",
                 kids.associate { it.id to store.countInFolder(it.id, "group") },
             )
@@ -98,10 +99,10 @@ fun GroupSection(
 
     Column(modifier = Modifier.fillMaxSize().padding(12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("群聊（${groups.size}）", style = MaterialTheme.typography.titleMedium)
+            Text("会话（${groups.size}）", style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.weight(1f))
             TextButton(onClick = {
-                    // 群聊也有文件夹（建在当前这一层），名字之后可改
+                    // 会话也有文件夹（建在当前这一层），名字之后可改
                     bg({
                         store0(context).createFolder(
                             "群文件夹 " + (groupFolders.size + 1),
@@ -110,11 +111,11 @@ fun GroupSection(
                         )
                     }) { tick++ }
                 }) { Text("新建文件夹") }
-                TextButton(onClick = { creating = true }) { Text("新建群聊") }
+                TextButton(onClick = { creating = true }) { Text("新建会话") }
         }
         Spacer(Modifier.height(6.dp))
         if (groups.isEmpty()) {
-            Text("还没有群聊：点右上角「新建群聊」，选两个以上角色", style = MaterialTheme.typography.bodySmall)
+            Text("还没有会话：点右上角「新建会话」，选两个以上角色", style = MaterialTheme.typography.bodySmall)
         } else {
             if (currentFolder.isNotEmpty() || groupFolders.isNotEmpty()) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -165,6 +166,13 @@ fun GroupSection(
                                         expanded = menuOpen,
                                         onDismissRequest = { menuOpen = false },
                                     ) {
+                                        DropdownMenuItem(
+                                            text = { Text("改名…") },
+                                            onClick = {
+                                                menuOpen = false
+                                                renamingGroup = group
+                                            },
+                                        )
                                         DropdownMenuItem(
                                             text = { Text("移动到文件夹…") },
                                             onClick = {
@@ -227,13 +235,13 @@ fun GroupSection(
                                         DropdownMenuItem(
                                             text = {
                                                 Text(
-                                                    "删除群聊",
+                                                    "删除会话",
                                                     color = MaterialTheme.colorScheme.error,
                                                 )
                                             },
                                             onClick = {
                                                 menuOpen = false
-                                                pendingWhat = "删除群聊「${group.title}」？它的聊天记录会一起删除。"
+                                                pendingWhat = "删除会话「${group.title}」？它的聊天记录会一起删除。"
                                                 pendingDelete = {
                                                     bg({ store0(context).deleteGroup(group.id) }) { tick++ }
                                                 }
@@ -284,6 +292,32 @@ fun GroupSection(
         )
     }
 
+    renamingGroup?.let { grp ->
+        var newName by remember { mutableStateOf(grp.name) }
+        AlertDialog(
+            onDismissRequest = { renamingGroup = null },
+            title = { Text("会话改名") },
+            text = {
+                OutlinedTextField(
+                    value = newName,
+                    onValueChange = { newName = it },
+                    label = { Text("名字") },
+                    singleLine = true,
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val name = newName.trim()
+                    renamingGroup = null
+                    if (name.isNotEmpty()) {
+                        bg({ store0(context).upsertGroup(grp.copy(name = name)) }) { tick++ }
+                    }
+                }) { Text("保存") }
+            },
+            dismissButton = { TextButton(onClick = { renamingGroup = null }) { Text("取消") } },
+        )
+    }
+
     renamingFolder?.let { folder ->
         var newName by remember { mutableStateOf(folder.title) }
         AlertDialog(
@@ -314,7 +348,7 @@ fun GroupSection(
         var picked by remember { mutableStateOf(setOf<String>()) }
         AlertDialog(
             onDismissRequest = { creating = false },
-            title = { Text("新建群聊") },
+            title = { Text("新建会话") },
             text = {
                 Column {
                     Text("选两个以上角色（新群默认全员禁言，进去后再解禁）")
